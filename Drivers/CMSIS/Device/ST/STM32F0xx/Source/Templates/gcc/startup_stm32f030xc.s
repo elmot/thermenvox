@@ -2,8 +2,8 @@
   ******************************************************************************
   * @file      startup_stm32f030xc.s
   * @author    MCD Application Team
-  * @version   V2.2.2
-  * @date      26-June-2015
+  * @version   V2.2.3
+  * @date      29-January-2016
   * @brief     STM32F030xc/STM32F030xb devices vector table for Atollic TrueSTUDIO toolchain.
   *            This module performs:
   *                - Set the initial SP

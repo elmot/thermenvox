@@ -4,7 +4,7 @@
   * Description        : Main program body
   ******************************************************************************
   *
-  * COPYRIGHT(c) 2015 STMicroelectronics
+  * COPYRIGHT(c) 2016 STMicroelectronics
   *
   * Redistribution and use in source and binary forms, with or without modification,
   * are permitted provided that the following conditions are met:
@@ -32,6 +32,7 @@
   */
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f0xx_hal.h"
+#include "usb_device.h"
 
 /* USER CODE BEGIN Includes */
 #include "stdbool.h"
@@ -44,9 +45,6 @@
 I2C_HandleTypeDef hi2c2;
 
 TIM_HandleTypeDef htim3;
-
-UART_HandleTypeDef huart1;
-DMA_HandleTypeDef hdma_usart1_tx;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
@@ -65,10 +63,11 @@ DMA_HandleTypeDef hdma_usart1_tx;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_DMA_Init(void);
 static void MX_I2C2_Init(void);
 static void MX_TIM3_Init(void);
-static void MX_USART1_UART_Init(void);
+
+void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
+                
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
@@ -78,6 +77,7 @@ void CUSTOM_GPIO_Init(void);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
+void sendMidi (USBD_HandleTypeDef *pdev, uint8_t * buf, size_t len);
 static volatile int volume = 0;
 static volatile int note = 0;
 static volatile int old_volume = 127;
@@ -113,10 +113,9 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_DMA_Init();
   MX_I2C2_Init();
   MX_TIM3_Init();
-  MX_USART1_UART_Init();
+  MX_USB_DEVICE_Init();
 
   /* USER CODE BEGIN 2 */
 	CUSTOM_GPIO_Init();
@@ -149,7 +148,6 @@ int main(void)
 	
 	HAL_TIM_Base_Start(&htim3);
 	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);
-	HAL_UART_Transmit(&huart1,(uint8_t*)"\0AT",3,50000);
 	while(HAL_GetTick()<2000);
   /* USER CODE END 2 */
 
@@ -163,7 +161,7 @@ int main(void)
 		__HAL_DMA_GET_FLAG(&hdma1, DMA_FLAG_TC3);
 		VL6180x_RangePollMeasurement(freqSensor, &rangeF);
 		VL6180x_RangePollMeasurement(volSensor, &rangeV);
-		
+
 		if(rangeV.errorStatus == 0) {
 			volume = 127 - rangeV.range_mm / 3;
 			if(volume < 0 ) volume = 0;
@@ -178,7 +176,37 @@ int main(void)
 		} else {
 			volume = 0;
 		}
-		while(huart1.hdmatx->State != HAL_DMA_STATE_READY) __wfi();
+
+		if(volume == 0) {
+			if(old_volume !=0)
+					sendMidi (&hUsbDeviceFS, (uint8_t []){0x0b, 0xB2, 0x7B, 00}, 4); //All notes off
+		} else if(old_volume == 0) {
+				uint8_t note_seq[] = {0x0C, 0xC2, 0x13, 00, // Program change #2 into 19
+				
+				0x9, 0x92, 64, 64, //Note 64 at volume 64 ON channel 2
+				
+				0xe, 0xE2, note, note, //Pitch bend
+				
+				0xB, 0xB2, 0x07, volume, //Volume ?
+//				0x2, 0x27, volume, 0//Volume ?
+				};
+				sendMidi (&hUsbDeviceFS, note_seq, sizeof(note_seq));
+			//todo
+//				uint8_t note_seq[] = {0xC2, 0x13, 0x92, 64, 64, 0xE2, note, note, 0xB2, 0x07, volume, 0x27, volume};
+//				HAL_UART_Transmit_DMA(&huart1, note_seq, sizeof(note_seq));
+		} else if(old_volume != volume || old_note != note) {
+//				uint8_t note_seq[] = {0xE2, note, note, 0xB2, 0x07, volume, 0x27, volume};
+//				HAL_UART_Transmit_DMA(&huart1, note_seq, sizeof(note_seq));
+				uint8_t note_seq[] = {
+				0xe, 0xE2, note, note, //Pitch bend
+				
+				0xB, 0xB2, 0x07, volume, //Volume ?
+//				0x2, 0x27, volume, 0//Volume ?
+				};
+				sendMidi (&hUsbDeviceFS, note_seq, sizeof(note_seq));
+			
+		}
+/*		while(huart1.hdmatx->State != HAL_DMA_STATE_READY) __wfi();
 		UART_CheckIdleState(&huart1);
 		if(old_note != note || old_volume != volume) {
 			if(volume == 0) {
@@ -192,6 +220,7 @@ int main(void)
 					HAL_UART_Transmit_DMA(&huart1, note_seq, sizeof(note_seq));
 			}
 		}
+*/
 		old_note = note;
 		old_volume = volume;
 		__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, volume * volume);
@@ -217,23 +246,23 @@ void SystemClock_Config(void)
   RCC_ClkInitTypeDef RCC_ClkInitStruct;
   RCC_PeriphCLKInitTypeDef PeriphClkInit;
 
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
-  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.HSICalibrationValue = 16;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI48;
+  RCC_OscInitStruct.HSI48State = RCC_HSI48_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
-  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL11;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI48;
+  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL2;
   RCC_OscInitStruct.PLL.PREDIV = RCC_PREDIV_DIV2;
   HAL_RCC_OscConfig(&RCC_OscInitStruct);
 
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_SYSCLK;
+  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
+                              |RCC_CLOCKTYPE_PCLK1;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
   HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1);
 
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1;
-  PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK1;
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USB;
+  PeriphClkInit.UsbClockSelection = RCC_USBCLKSOURCE_HSI48;
   HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit);
 
   HAL_SYSTICK_Config(HAL_RCC_GetHCLKFreq()/1000);
@@ -249,19 +278,19 @@ void MX_I2C2_Init(void)
 {
 
   hi2c2.Instance = I2C2;
-  hi2c2.Init.Timing = 0x00A0B0FE;
+  hi2c2.Init.Timing = 0x20303E5D;
   hi2c2.Init.OwnAddress1 = 0;
   hi2c2.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-  hi2c2.Init.DualAddressMode = I2C_DUALADDRESS_DISABLED;
+  hi2c2.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
   hi2c2.Init.OwnAddress2 = 0;
   hi2c2.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
-  hi2c2.Init.GeneralCallMode = I2C_GENERALCALL_DISABLED;
-  hi2c2.Init.NoStretchMode = I2C_NOSTRETCH_DISABLED;
+  hi2c2.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c2.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
   HAL_I2C_Init(&hi2c2);
 
     /**Configure Analogue filter 
     */
-  HAL_I2CEx_AnalogFilter_Config(&hi2c2, I2C_ANALOGFILTER_ENABLED);
+  HAL_I2CEx_ConfigAnalogFilter(&hi2c2, I2C_ANALOGFILTER_ENABLE);
 
 }
 
@@ -295,37 +324,7 @@ void MX_TIM3_Init(void)
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
   HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_3);
 
-}
-
-/* USART1 init function */
-void MX_USART1_UART_Init(void)
-{
-
-  huart1.Instance = USART1;
-  huart1.Init.BaudRate = 115200;
-  huart1.Init.WordLength = UART_WORDLENGTH_8B;
-  huart1.Init.StopBits = UART_STOPBITS_1;
-  huart1.Init.Parity = UART_PARITY_NONE;
-  huart1.Init.Mode = UART_MODE_TX_RX;
-  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
-  huart1.Init.OneBitSampling = UART_ONEBIT_SAMPLING_DISABLED ;
-  huart1.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
-  HAL_UART_Init(&huart1);
-
-}
-
-/** 
-  * Enable DMA controller clock
-  */
-void MX_DMA_Init(void) 
-{
-  /* DMA controller clock enable */
-  __DMA1_CLK_ENABLE();
-
-  /* DMA interrupt init */
-  HAL_NVIC_SetPriority(DMA1_Channel2_3_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Channel2_3_IRQn);
+  HAL_TIM_MspPostInit(&htim3);
 
 }
 
@@ -342,8 +341,11 @@ void MX_GPIO_Init(void)
   GPIO_InitTypeDef GPIO_InitStruct;
 
   /* GPIO Ports Clock Enable */
-  __GPIOA_CLK_ENABLE();
-  __GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1|GPIO_PIN_2, GPIO_PIN_RESET);
 
   /*Configure GPIO pins : PA1 PA2 */
   GPIO_InitStruct.Pin = GPIO_PIN_1|GPIO_PIN_2;
