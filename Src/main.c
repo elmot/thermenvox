@@ -35,18 +35,18 @@
 
 /* USER CODE BEGIN Includes */
 #include "stdbool.h"
+#include "string.h"
 #include "vl6180x_api.h"
 
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
-DAC_HandleTypeDef hdac;
-DMA_HandleTypeDef hdma_dac_ch1;
-
 I2C_HandleTypeDef hi2c2;
 
-TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
+
+UART_HandleTypeDef huart1;
+DMA_HandleTypeDef hdma_usart1_tx;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
@@ -66,10 +66,9 @@ TIM_HandleTypeDef htim3;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
-static void MX_DAC_Init(void);
 static void MX_I2C2_Init(void);
-static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
+static void MX_USART1_UART_Init(void);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
@@ -79,34 +78,15 @@ void CUSTOM_GPIO_Init(void);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
-static volatile uint8_t buff_index = 0;
-static volatile int volume = 255;
-static uint16_t buff[2][BUFF_SIZE];
+static volatile int volume = 0;
+static volatile int note = 0;
+static volatile int old_volume = 127;
+static volatile int old_note = 127;
 
 VL6180x_RangeData_t rangeV;
 VL6180x_RangeData_t rangeF;
 
 
-void 	prepareBuffer(uint16_t * buffer, uint16_t size, uint8_t volume)
-{
-	//Triangle
-	uint32_t value = 0;
-	uint32_t dv = 0x00FFFFFF * volume; 
-  dv /= size;
-	dv *= 2;
-	
-	for(int  i = 0; i < size/4;i++)
-	{
-		int v = value >> 20;
-		buffer[i] = buffer[size/2 - 1 - i ] = v + 2048;
-		buffer[i + size / 2] = buffer[size - 1 - i ] = 2048 - v;
-
-
-//		buffer[i + size / 4] =  buffer[size /4 - 1 - i] = v;
-//		buffer[i + size / 2] =  buffer[size - 1 - i] = v + 2048;
-		value += dv;
-	}
-}
 void 		delay(int ms)
 {
 	uint32_t v = HAL_GetTick() + ms;
@@ -120,7 +100,6 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-	prepareBuffer(buff[buff_index], BUFF_SIZE, volume);
 
   /* USER CODE END 1 */
 
@@ -135,10 +114,9 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_DMA_Init();
-  MX_DAC_Init();
   MX_I2C2_Init();
-  MX_TIM2_Init();
   MX_TIM3_Init();
+  MX_USART1_UART_Init();
 
   /* USER CODE BEGIN 2 */
 	CUSTOM_GPIO_Init();
@@ -169,12 +147,10 @@ int main(void)
 	VL6180x_Prepare(freqSensor);
 
 	
-	htim2.Instance->CR1 |= TIM_CR1_ARPE;
-	HAL_TIM_Base_Start(&htim2);
 	HAL_TIM_Base_Start(&htim3);
 	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);
-	HAL_DAC_Start_DMA(&hdac, DAC_CHANNEL_1, (uint32_t*)buff[buff_index], BUFF_SIZE, DAC_ALIGN_12B_R);
-
+	HAL_UART_Transmit(&huart1,(uint8_t*)"\0AT",3,50000);
+	while(HAL_GetTick()<2000);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -185,24 +161,49 @@ int main(void)
 
   /* USER CODE BEGIN 3 */
 		__HAL_DMA_GET_FLAG(&hdma1, DMA_FLAG_TC3);
-		hdma_dac_ch1.Instance->CMAR;
 		VL6180x_RangePollMeasurement(freqSensor, &rangeF);
 		VL6180x_RangePollMeasurement(volSensor, &rangeV);
-		buff_index = buff_index ==0 ? 1: 0;
+		
 		if(rangeV.errorStatus == 0) {
-			volume = 255 - rangeV.range_mm * 2 / 3;
+			volume = 127 - rangeV.range_mm / 3;
 			if(volume < 0 ) volume = 0;
+			if(volume > 127) volume = 127;
 		} else {
 			volume = 0;
 		}
-		if(rangeF.errorStatus == 0) {
-			__HAL_TIM_SET_AUTORELOAD(&htim2, rangeF.range_mm *2);
+		if(rangeF.errorStatus == 0){
+			note = rangeF.range_mm / 3 + 10;
+			if(note < 0 ) note = 0;
+			if(note > 127) note = 127;
 		} else {
 			volume = 0;
 		}
+		while(huart1.hdmatx->State != HAL_DMA_STATE_READY) __wfi();
+		UART_CheckIdleState(&huart1);
+		if(old_note != note || old_volume != volume) {
+			if(volume == 0) {
+				uint8_t note_seq[] = {0xB2, 0x7B, 00};
+				HAL_UART_Transmit_DMA(&huart1, note_seq, sizeof(note_seq));
+			} else if(old_volume == 0) {
+					uint8_t note_seq[] = {0xC2, 0x13, 0x92, 64, 64, 0xE2, note, note, 0xB2, 0x07, volume, 0x27, volume};
+					HAL_UART_Transmit_DMA(&huart1, note_seq, sizeof(note_seq));
+			} else {
+					uint8_t note_seq[] = {0xE2, note, note, 0xB2, 0x07, volume, 0x27, volume};
+					HAL_UART_Transmit_DMA(&huart1, note_seq, sizeof(note_seq));
+			}
+		}
+		old_note = note;
+		old_volume = volume;
 		__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, volume * volume);
-		prepareBuffer(buff[buff_index], BUFF_SIZE, volume);
   }
+	/*
+	B47B00 -- all notes off
+	C430 -- Contrabass
+	B407402740 - Main volume 0x1020
+	944040 -- note40 velocity 40
+	
+	E44040 - Pitch 0x2040
+	*/
   /* USER CODE END 3 */
 
 }
@@ -214,6 +215,7 @@ void SystemClock_Config(void)
 
   RCC_OscInitTypeDef RCC_OscInitStruct;
   RCC_ClkInitTypeDef RCC_ClkInitStruct;
+  RCC_PeriphCLKInitTypeDef PeriphClkInit;
 
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
@@ -230,31 +232,16 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
   HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1);
 
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1;
+  PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK1;
+  HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit);
+
   HAL_SYSTICK_Config(HAL_RCC_GetHCLKFreq()/1000);
 
   HAL_SYSTICK_CLKSourceConfig(SYSTICK_CLKSOURCE_HCLK);
 
   /* SysTick_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
-}
-
-/* DAC init function */
-void MX_DAC_Init(void)
-{
-
-  DAC_ChannelConfTypeDef sConfig;
-
-    /**DAC Initialization 
-    */
-  hdac.Instance = DAC;
-  HAL_DAC_Init(&hdac);
-
-    /**DAC channel OUT1 config 
-    */
-  sConfig.DAC_Trigger = DAC_TRIGGER_T2_TRGO;
-  sConfig.DAC_OutputBuffer = DAC_OUTPUTBUFFER_ENABLE;
-  HAL_DAC_ConfigChannel(&hdac, &sConfig, DAC_CHANNEL_1);
-
 }
 
 /* I2C2 init function */
@@ -275,29 +262,6 @@ void MX_I2C2_Init(void)
     /**Configure Analogue filter 
     */
   HAL_I2CEx_AnalogFilter_Config(&hi2c2, I2C_ANALOGFILTER_ENABLED);
-
-}
-
-/* TIM2 init function */
-void MX_TIM2_Init(void)
-{
-
-  TIM_ClockConfigTypeDef sClockSourceConfig;
-  TIM_MasterConfigTypeDef sMasterConfig;
-
-  htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 0;
-  htim2.Init.CounterMode = TIM_COUNTERMODE_DOWN;
-  htim2.Init.Period = 300;
-  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  HAL_TIM_Base_Init(&htim2);
-
-  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-  HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig);
-
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_UPDATE;
-  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig);
 
 }
 
@@ -330,6 +294,24 @@ void MX_TIM3_Init(void)
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
   HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_3);
+
+}
+
+/* USART1 init function */
+void MX_USART1_UART_Init(void)
+{
+
+  huart1.Instance = USART1;
+  huart1.Init.BaudRate = 115200;
+  huart1.Init.WordLength = UART_WORDLENGTH_8B;
+  huart1.Init.StopBits = UART_STOPBITS_1;
+  huart1.Init.Parity = UART_PARITY_NONE;
+  huart1.Init.Mode = UART_MODE_TX_RX;
+  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+  huart1.Init.OneBitSampling = UART_ONEBIT_SAMPLING_DISABLED ;
+  huart1.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+  HAL_UART_Init(&huart1);
 
 }
 

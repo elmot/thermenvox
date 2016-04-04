@@ -57,7 +57,7 @@
 //#define HAL_CRC_MODULE_ENABLED   
 //#define HAL_CRYP_MODULE_ENABLED   
 //#define HAL_TSC_MODULE_ENABLED   
-#define HAL_DAC_MODULE_ENABLED
+//#define HAL_DAC_MODULE_ENABLED   
 #define HAL_I2C_MODULE_ENABLED
 //#define HAL_I2S_MODULE_ENABLED   
 //#define HAL_IWDG_MODULE_ENABLED   
@@ -67,7 +67,7 @@
 //#define HAL_RTC_MODULE_ENABLED   
 //#define HAL_SPI_MODULE_ENABLED   
 #define HAL_TIM_MODULE_ENABLED
-//#define HAL_UART_MODULE_ENABLED   
+#define HAL_UART_MODULE_ENABLED
 //#define HAL_USART_MODULE_ENABLED   
 //#define HAL_IRDA_MODULE_ENABLED   
 //#define HAL_SMARTCARD_MODULE_ENABLED   
@@ -96,7 +96,7 @@
   *        Timeout value 
   */
 #if !defined  (HSE_STARTUP_TIMEOUT)
-  #define HSE_STARTUP_TIMEOUT    ((uint32_t)5000)   /*!< Time out for HSE start up, in ms */
+  #define HSE_STARTUP_TIMEOUT    ((uint32_t)100)   /*!< Time out for HSE start up, in ms */
 #endif /* HSE_STARTUP_TIMEOUT */
 
 /**

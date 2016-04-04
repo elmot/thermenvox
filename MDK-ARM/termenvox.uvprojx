@@ -48,10 +48,10 @@
             <InvalidFlash>1</InvalidFlash>
           </TargetStatus>
           <OutputDirectory>termenvox Configuration\</OutputDirectory>
-          <OutputName>termenvox Configuration</OutputName>
+          <OutputName>thermenvox</OutputName>
           <CreateExecutable>1</CreateExecutable>
           <CreateLib>0</CreateLib>
-          <CreateHexFile>0</CreateHexFile>
+          <CreateHexFile>1</CreateHexFile>
           <DebugInformation>1</DebugInformation>
           <BrowseInformation>1</BrowseInformation>
           <ListingPath></ListingPath>
@@ -110,12 +110,12 @@
         <DllOption>
           <SimDllName>SARMCM3.DLL</SimDllName>
           <SimDllArguments>-REMAP</SimDllArguments>
-          <SimDlgDll>DCM.DLL</SimDlgDll>
-          <SimDlgDllArguments>-pCM3</SimDlgDllArguments>
+          <SimDlgDll>DARMCM1.DLL</SimDlgDll>
+          <SimDlgDllArguments>-pCM0</SimDlgDllArguments>
           <TargetDllName>SARMCM3.DLL</TargetDllName>
           <TargetDllArguments></TargetDllArguments>
-          <TargetDlgDll>TCM.DLL</TargetDlgDll>
-          <TargetDlgDllArguments>-pCM3</TargetDlgDllArguments>
+          <TargetDlgDll>TARMCM1.DLL</TargetDlgDll>
+          <TargetDlgDllArguments>-pCM0</TargetDlgDllArguments>
         </DllOption>
         <DebugOption>
           <OPTHX>
@@ -373,7 +373,7 @@
               <MiscControls>--C99</MiscControls>
               <Define>USE_HAL_DRIVER,STM32F072xB</Define>
               <Undefine></Undefine>
-              <IncludePath>..\Inc;  ..\Drivers\STM32F0xx_HAL_Driver\Inc;  ..\Drivers\STM32F0xx_HAL_Driver\Inc\Legacy;  ..\Drivers\CMSIS\Include;  ..\Drivers\CMSIS\Device\ST\STM32F0xx\Include</IncludePath>
+              <IncludePath>..\Inc;   ..\Drivers\STM32F0xx_HAL_Driver\Inc;   ..\Drivers\STM32F0xx_HAL_Driver\Inc\Legacy;   ..\Drivers\CMSIS\Include;   ..\Drivers\CMSIS\Device\ST\STM32F0xx\Include;../Inc;../Drivers/STM32F0xx_HAL_Driver/Inc;../Drivers/STM32F0xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Include;../Drivers/CMSIS/Device/ST/STM32F0xx/Include</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -417,34 +417,9 @@
           <GroupName>Drivers/STM32F0xx_HAL_Driver</GroupName>
           <Files>
             <File>
-              <FileName>stm32f0xx_hal_tim_ex.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Drivers\STM32F0xx_HAL_Driver\Src\stm32f0xx_hal_tim_ex.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f0xx_hal_dac.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Drivers\STM32F0xx_HAL_Driver\Src\stm32f0xx_hal_dac.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f0xx_hal_pwr.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Drivers\STM32F0xx_HAL_Driver\Src\stm32f0xx_hal_pwr.c</FilePath>
-            </File>
-            <File>
               <FileName>stm32f0xx_hal.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Drivers\STM32F0xx_HAL_Driver\Src\stm32f0xx_hal.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f0xx_hal_pwr_ex.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Drivers\STM32F0xx_HAL_Driver\Src\stm32f0xx_hal_pwr_ex.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f0xx_hal_tim.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Drivers\STM32F0xx_HAL_Driver\Src\stm32f0xx_hal_tim.c</FilePath>
             </File>
             <File>
               <FileName>stm32f0xx_hal_cortex.c</FileName>
@@ -452,9 +427,9 @@
               <FilePath>..\Drivers\STM32F0xx_HAL_Driver\Src\stm32f0xx_hal_cortex.c</FilePath>
             </File>
             <File>
-              <FileName>stm32f0xx_hal_gpio.c</FileName>
+              <FileName>stm32f0xx_hal_dma.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\Drivers\STM32F0xx_HAL_Driver\Src\stm32f0xx_hal_gpio.c</FilePath>
+              <FilePath>..\Drivers\STM32F0xx_HAL_Driver\Src\stm32f0xx_hal_dma.c</FilePath>
             </File>
             <File>
               <FileName>stm32f0xx_hal_flash.c</FileName>
@@ -462,14 +437,14 @@
               <FilePath>..\Drivers\STM32F0xx_HAL_Driver\Src\stm32f0xx_hal_flash.c</FilePath>
             </File>
             <File>
-              <FileName>stm32f0xx_hal_dac_ex.c</FileName>
+              <FileName>stm32f0xx_hal_flash_ex.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\Drivers\STM32F0xx_HAL_Driver\Src\stm32f0xx_hal_dac_ex.c</FilePath>
+              <FilePath>..\Drivers\STM32F0xx_HAL_Driver\Src\stm32f0xx_hal_flash_ex.c</FilePath>
             </File>
             <File>
-              <FileName>stm32f0xx_hal_rcc_ex.c</FileName>
+              <FileName>stm32f0xx_hal_gpio.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\Drivers\STM32F0xx_HAL_Driver\Src\stm32f0xx_hal_rcc_ex.c</FilePath>
+              <FilePath>..\Drivers\STM32F0xx_HAL_Driver\Src\stm32f0xx_hal_gpio.c</FilePath>
             </File>
             <File>
               <FileName>stm32f0xx_hal_i2c.c</FileName>
@@ -477,14 +452,19 @@
               <FilePath>..\Drivers\STM32F0xx_HAL_Driver\Src\stm32f0xx_hal_i2c.c</FilePath>
             </File>
             <File>
-              <FileName>stm32f0xx_hal_flash_ex.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Drivers\STM32F0xx_HAL_Driver\Src\stm32f0xx_hal_flash_ex.c</FilePath>
-            </File>
-            <File>
               <FileName>stm32f0xx_hal_i2c_ex.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Drivers\STM32F0xx_HAL_Driver\Src\stm32f0xx_hal_i2c_ex.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32f0xx_hal_pwr.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Drivers\STM32F0xx_HAL_Driver\Src\stm32f0xx_hal_pwr.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32f0xx_hal_pwr_ex.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Drivers\STM32F0xx_HAL_Driver\Src\stm32f0xx_hal_pwr_ex.c</FilePath>
             </File>
             <File>
               <FileName>stm32f0xx_hal_rcc.c</FileName>
@@ -492,9 +472,29 @@
               <FilePath>..\Drivers\STM32F0xx_HAL_Driver\Src\stm32f0xx_hal_rcc.c</FilePath>
             </File>
             <File>
-              <FileName>stm32f0xx_hal_dma.c</FileName>
+              <FileName>stm32f0xx_hal_rcc_ex.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\Drivers\STM32F0xx_HAL_Driver\Src\stm32f0xx_hal_dma.c</FilePath>
+              <FilePath>..\Drivers\STM32F0xx_HAL_Driver\Src\stm32f0xx_hal_rcc_ex.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32f0xx_hal_tim.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Drivers\STM32F0xx_HAL_Driver\Src\stm32f0xx_hal_tim.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32f0xx_hal_tim_ex.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Drivers\STM32F0xx_HAL_Driver\Src\stm32f0xx_hal_tim_ex.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32f0xx_hal_uart.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_uart.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32f0xx_hal_uart_ex.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_uart_ex.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -524,7 +524,7 @@
             <File>
               <FileName>startup_stm32f072xb.s</FileName>
               <FileType>2</FileType>
-              <FilePath>..\Drivers\CMSIS\Device\ST\STM32F0xx\Source\Templates\arm\startup_stm32f072xb.s</FilePath>
+              <FilePath>../Drivers/CMSIS/Device/ST/STM32F0xx/Source/Templates/arm/startup_stm32f072xb.s</FilePath>
             </File>
           </Files>
         </Group>
